@@ -86,6 +86,7 @@ if (cluster.isPrimary) {
     "/api/contributors", // Public read-only API
     "/api-docs", // Swagger documentation
     "/api/auth/webhook", // Potential webhooks (if any)
+    "/api/chatbot", // Chatbot API (public access)
   ];
   app.use(skipCSRFForRoutes(csrfSkipRoutes));
 
@@ -104,6 +105,7 @@ if (cluster.isPrimary) {
   const issueRoutes = require("./routes/issues.js");
   const profileRoutes = require("./routes/profileRoutes.js");
   const contributionsRoutes = require("./routes/contributions.js");
+  const chatbotRoutes = require("./routes/chatbot.js");
 
   // CSRF token endpoint
   app.get("/api/csrf-token", (req, res) => {
@@ -114,6 +116,7 @@ if (cluster.isPrimary) {
   app.use("/api/issues", issueRoutes);
   app.use("/api/profile", profileRoutes);
   app.use("/api/contributors", contributionsRoutes);
+  app.use("/api/chatbot", chatbotRoutes);
 
   // === Swagger API Docs ===
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));

@@ -36,6 +36,7 @@ import Contributors from './Pages/Contributors';
 import ScrollToTopOnRouteChange from './components/ScrollToTopOnRouteChange';
 import SOS from './Pages/SOS';
 import Chatroom from './Pages/Chatroom';
+import ChatBot from './components/Chatbot';
 
 const App = () => {
   const { isSignedIn } = useAuth();
@@ -141,6 +142,7 @@ const App = () => {
       </main>
 
       <Footer />
+      <ChatBot />
     </>
   );
 };

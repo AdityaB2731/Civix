@@ -1,179 +1,243 @@
-// import { useState, useEffect, useRef } from 'react';
-// import { FiMessageSquare, FiX, FiSend, FiChevronDown } from 'react-icons/fi';
+import { useState, useEffect, useRef } from 'react';
+import { FiMessageSquare, FiX, FiSend, FiChevronDown, FiLoader } from 'react-icons/fi';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 
-// const ChatBot = () => {
-//   const [isOpen, setIsOpen] = useState(false);
-//   const [messages, setMessages] = useState([]);
-//   const [inputValue, setInputValue] = useState('');
-//   const [suggestedQuestions, setSuggestedQuestions] = useState([]);
-//   const messagesEndRef = useRef(null);
+const ChatBot = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [suggestedQuestions, setSuggestedQuestions] = useState([]);
+  const messagesEndRef = useRef(null);
 
-//   // FAQ data - can be expanded or moved to a separate file
-//   const faqData = [
-//     {
-//       question: 'How do I report an issue?',
-//       answer: 'To report an issue, click on the "Report Issue" button on the homepage. You\'ll need to provide a description, location, and optionally upload a photo of the problem.'
-//     },
-//     {
-//       question: 'How can I track my reported issue?',
-//       answer: 'Go to "My Reports" in your profile to see all issues you\'ve reported. Each issue will show its current status (Open, In Progress, or Resolved).'
-//     },
-//     {
-//       question: 'What types of issues can I report?',
-//       answer: 'You can report various civic issues like potholes, broken streetlights, garbage collection problems, water leaks, and other public infrastructure issues.'
-//     },
-//     {
-//       question: 'How do I upvote an issue?',
-//       answer: 'Find the issue in the "Community Reports" section and click the thumbs-up icon. Upvoting helps prioritize common community concerns.'
-//     },
-//     {
-//       question: 'Who can see my reports?',
-//       answer: 'Your reports are visible to city administrators and other community members. Personal information is kept private according to our privacy policy.'
-//     },
-//     {
-//       question: 'How long does it take to resolve issues?',
-//       answer: 'Resolution times vary based on issue complexity and city resources. Simple issues may be fixed within days, while complex ones may take weeks.'
-//     }
-//   ];
+  // Suggested questions for Civix platform
+  const suggestedQuestionsData = [
+    'How do I report an issue?',
+    'How can I track my reported issues?',
+    'What types of issues can I report?',
+    'How do I upvote an issue?',
+    'Who can see my reports?',
+    'How long does it take to resolve issues?'
+  ];
 
-//   // Initialize with welcome message and suggested questions
-//   useEffect(() => {
-//     if (isOpen && messages.length === 0) {
-//       setMessages([
-//         {
-//           text: 'Hello! I\'m Civix Assistant. How can I help you today? Here are some common questions:',
-//           isBot: true
-//         }
-//       ]);
-//       setSuggestedQuestions(faqData.map(item => item.question).slice(0, 3));
-//     }
-//   }, [isOpen]);
+  // Initialize with welcome message and suggested questions
+  useEffect(() => {
+    if (isOpen && messages.length === 0) {
+      setMessages([
+        {
+          text: 'Hello! I\'m Civix Assistant, powered by AI. I can help you with civic engagement, issue reporting, and platform guidance. How can I assist you today?',
+          isBot: true,
+          timestamp: new Date().toISOString()
+        }
+      ]);
+      setSuggestedQuestions(suggestedQuestionsData.slice(0, 3));
+    }
+  }, [isOpen]);
 
-//   // Auto-scroll to bottom when messages change
-//   useEffect(() => {
-//     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-//   }, [messages]);
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-//   const toggleChat = () => {
-//     setIsOpen(!isOpen);
-//   };
+  const toggleChat = () => {
+    setIsOpen(!isOpen);
+  };
 
-//   const handleSendMessage = () => {
-//     if (inputValue.trim() === '') return;
+  const sendMessage = async (messageText) => {
+    if (!messageText.trim()) return;
 
-//     // Add user message
-//     const newMessages = [...messages, { text: inputValue, isBot: false }];
-//     setMessages(newMessages);
-//     setInputValue('');
+    // Add user message
+    const userMessage = {
+      text: messageText,
+      isBot: false,
+      timestamp: new Date().toISOString()
+    };
 
-//     // Find matching FAQ or provide default response
-//     setTimeout(() => {
-//       const matchedFaq = faqData.find(item => 
-//         item.question.toLowerCase().includes(inputValue.toLowerCase()) || 
-//         inputValue.toLowerCase().includes(item.question.toLowerCase())
-//       );
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+    setIsLoading(true);
+    setSuggestedQuestions([]);
 
-//       if (matchedFaq) {
-//         setMessages(prev => [...prev, { text: matchedFaq.answer, isBot: true }]);
-//       } else {
-//         setMessages(prev => [...prev, { 
-//           text: "I'm not sure I understand. Here are some questions I can help with:", 
-//           isBot: true 
-//         }]);
-//         setSuggestedQuestions(faqData.map(item => item.question).slice(0, 3));
-//       }
-//     }, 1000);
-//   };
+    try {
+      // Prepare conversation history for context
+      const conversationHistory = messages.map(msg => ({
+        text: msg.text,
+        isBot: msg.isBot
+      }));
 
-//   const handleSuggestedQuestion = (question) => {
-//     setInputValue(question);
-//     setSuggestedQuestions([]);
-//   };
+      const response = await axios.post('/api/chatbot/chat', {
+        message: messageText,
+        conversationHistory
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
-//   const handleKeyPress = (e) => {
-//     if (e.key === 'Enter') {
-//       handleSendMessage();
-//     }
-//   };
+      if (response.data.success) {
+        const botMessage = {
+          text: response.data.data.response,
+          isBot: true,
+          timestamp: response.data.data.timestamp
+        };
+        setMessages(prev => [...prev, botMessage]);
+      } else {
+        throw new Error(response.data.message || 'Failed to get response');
+      }
+    } catch (error) {
+      console.error('Chatbot error:', error);
+      
+      const errorMessage = {
+        text: 'Sorry, I encountered an error. Please try again or check your connection.',
+        isBot: true,
+        timestamp: new Date().toISOString(),
+        isError: true
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+      toast.error('Failed to get response from chatbot');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-//   return (
-//     <div className="fixed bottom-6 right-6 z-50">
-//       {isOpen ? (
-//         <div className="w-80 h-[500px] bg-white dark:bg-gray-800 rounded-lg shadow-xl flex flex-col border border-gray-200 dark:border-gray-700">
-//           {/* Header */}
-//           <div className="bg-blue-600 text-white p-3 rounded-t-lg flex justify-between items-center">
-//             <h3 className="font-semibold">Civix Assistant</h3>
-//             <button onClick={toggleChat} className="text-white hover:text-gray-200">
-//               <FiX size={20} />
-//             </button>
-//           </div>
+  const handleSendMessage = () => {
+    sendMessage(inputValue);
+  };
+
+  const handleSuggestedQuestion = (question) => {
+    sendMessage(question);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50">
+      {isOpen ? (
+        <div className="w-80 h-[500px] bg-white dark:bg-gray-800 rounded-lg shadow-xl flex flex-col border border-gray-200 dark:border-gray-700">
+          {/* Header */}
+          <div className="bg-blue-600 text-white p-3 rounded-t-lg flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <h3 className="font-semibold">Civix AI Assistant</h3>
+            </div>
+            <button 
+              onClick={toggleChat} 
+              className="text-white hover:text-gray-200 transition-colors"
+            >
+              <FiX size={20} />
+            </button>
+          </div>
           
-//           {/* Messages */}
-//           <div className="flex-1 p-4 overflow-y-auto">
-//             {messages.map((message, index) => (
-//               <div 
-//                 key={index} 
-//                 className={`mb-4 flex ${message.isBot ? 'justify-start' : 'justify-end'}`}
-//               >
-//                 <div 
-//                   className={`max-w-[80%] p-3 rounded-lg ${message.isBot ? 
-//                     'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200' : 
-//                     'bg-blue-500 text-white'}`}
-//                 >
-//                   {message.text}
-//                 </div>
-//               </div>
-//             ))}
+          {/* Messages */}
+          <div className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+            {messages.map((message, index) => (
+              <div 
+                key={index} 
+                className={`mb-4 flex ${message.isBot ? 'justify-start' : 'justify-end'}`}
+              >
+                <div className="max-w-[85%]">
+                  <div 
+                    className={`p-3 rounded-lg ${
+                      message.isBot 
+                        ? message.isError
+                          ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                          : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 shadow-sm'
+                        : 'bg-blue-500 text-white'
+                    }`}
+                  >
+                    <div className="text-sm whitespace-pre-wrap">{message.text}</div>
+                    <div className={`text-xs mt-1 ${
+                      message.isBot 
+                        ? 'text-gray-500 dark:text-gray-400' 
+                        : 'text-blue-100'
+                    }`}>
+                      {formatTime(message.timestamp)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
             
-//             {/* Suggested questions */}
-//             {suggestedQuestions.length > 0 && (
-//               <div className="mt-4">
-//                 <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Suggested questions:</div>
-//                 {suggestedQuestions.map((question, index) => (
-//                   <button
-//                     key={index}
-//                     onClick={() => handleSuggestedQuestion(question)}
-//                     className="block w-full text-left mb-2 p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm text-gray-800 dark:text-gray-200 transition"
-//                   >
-//                     {question}
-//                   </button>
-//                 ))}
-//               </div>
-//             )}
+            {/* Loading indicator */}
+            {isLoading && (
+              <div className="flex justify-start mb-4">
+                <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm">
+                  <div className="flex items-center space-x-2">
+                    <FiLoader className="animate-spin text-blue-500" size={16} />
+                    <span className="text-sm text-gray-600 dark:text-gray-300">AI is thinking...</span>
+                  </div>
+                </div>
+              </div>
+            )}
             
-//             <div ref={messagesEndRef} />
-//           </div>
+            {/* Suggested questions */}
+            {suggestedQuestions.length > 0 && !isLoading && (
+              <div className="mt-4">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">
+                  Quick questions:
+                </div>
+                {suggestedQuestions.map((question, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSuggestedQuestion(question)}
+                    className="block w-full text-left mb-2 p-2 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg text-sm text-gray-800 dark:text-gray-200 transition-colors border border-gray-200 dark:border-gray-600"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
           
-//           {/* Input area */}
-//           <div className="p-3 border-t border-gray-200 dark:border-gray-700">
-//             <div className="flex items-center">
-//               <input
-//                 type="text"
-//                 value={inputValue}
-//                 onChange={(e) => setInputValue(e.target.value)}
-//                 onKeyPress={handleKeyPress}
-//                 placeholder="Type your question..."
-//                 className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-l-lg focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-//               />
-//               <button
-//                 onClick={handleSendMessage}
-//                 className="bg-blue-600 text-white p-2 rounded-r-lg hover:bg-blue-700 transition"
-//               >
-//                 <FiSend size={20} />
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-//       ) : (
-//         <button
-//           onClick={toggleChat}
-//           className="bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition flex items-center justify-center"
-//         >
-//           <FiMessageSquare size={24} />
-//         </button>
-//       )}
-//     </div>
-//   );
-// };
+          {/* Input area */}
+          <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <div className="flex items-center">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask me about Civix..."
+                disabled={isLoading}
+                className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50"
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={isLoading || !inputValue.trim()}
+                className="bg-blue-600 text-white p-2 rounded-r-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FiSend size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={toggleChat}
+          className="bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors flex items-center justify-center group"
+        >
+          <FiMessageSquare size={24} />
+          <div className="absolute -top-2 -right-2 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+        </button>
+      )}
+    </div>
+  );
+};
 
-// export default ChatBot;
+export default ChatBot;
