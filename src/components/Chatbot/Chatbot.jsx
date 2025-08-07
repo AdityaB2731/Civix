@@ -66,7 +66,7 @@ const ChatBot = () => {
         isBot: msg.isBot
       }));
 
-      const response = await axios.post('/api/chatbot/chat', {
+      const response = await axios.post('http://localhost:3001/api/chatbot/chat', {
         message: messageText,
         conversationHistory
       }, {
